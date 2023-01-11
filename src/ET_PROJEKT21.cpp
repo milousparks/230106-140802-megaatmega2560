@@ -1,11 +1,8 @@
 #include <Arduino.h>
 #include <U8g2lib.h>
 #include <U8x8lib.h>
-#include <A4988.h>
 #include <BasicStepperDriver.h>
 #include <DRV8825.h>
-#include <DRV8834.h>
-#include <DRV8880.h>
 #include <MultiDriver.h>
 #include <SyncDriver.h>
 
@@ -17,7 +14,13 @@
 #ifdef U8X8_HAVE_HW_I2C
 #include <Wire.h>
 #endif
+ 
+ /* Stepper Motoren*/
 
+// 200 Stepp Motor
+ #define MOTOR_STEPS 200
+ #define MICROSTEPS 1
+ #define RPM 120
 
 /* Anschlussbelegung für die X-Achse: */
 #define X_STEP_PIN         54
@@ -34,14 +37,18 @@
   #define Y_CS_PIN         49
 #endif
 
+
 U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, /* clock=*/ 23 /* A4 */ , /* data=*/ 17 /* A2 */, /* CS=*/ 16 /* A3 */, /* reset=*/ U8X8_PIN_NONE);
 
-/* Variablen definieren: */
+/* Pins definieren: */
 
+/* Joystick*/
+#define JOYSTICK_X 4
+#define JOYSTICK_Y 3
 // End of constructor list
 /* Rotary encoder (dial) pins */
-#define ROT_EN_A 57
-#define ROT_EN_B 58
+#define ROT_EN_A 31
+#define ROT_EN_B 33
 
 /* Rotary encoder button pin */
 #define BUTTON_DIO 35
@@ -56,17 +63,51 @@ U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, /* clock=*/ 23 /* A4 */ , /* data=*/ 1
 #define LCD_D6 27
 #define LCD_D7 29
 
-#define encoder0Btn 35
+#define encoder0Btn 2
 int encoder0Pos = 0;
 //aktueller stand
 int temp_state  = 0;
 //letzter stand
 int lbtn_state = 1;
 
+/*Joystick*/
+class AnalogJoystick {
+public:
+    AnalogJoystick(int xPin, int yPin) {
+        this->xPin = xPin;
+        this->yPin = yPin;
+    }
+
+    void begin() {
+        pinMode(xPin, INPUT);
+        pinMode(yPin, INPUT);
+    }
+
+    int readX() {
+        return analogRead(xPin);
+    }
+
+    int readY() {
+        return analogRead(yPin);
+    }
+
+private:
+    int xPin, yPin;
+};
+/* Klassen Def*/
+DRV8825 stepper_x(MOTOR_STEPS, X_DIR_PIN, X_STEP_PIN, X_ENABLE_PIN);
+DRV8825 stepper_y(MOTOR_STEPS, Y_DIR_PIN, Y_STEP_PIN, Y_ENABLE_PIN);
+AnalogJoystick joystick(JOYSTICK_X, JOYSTICK_Y);
+
 
 unsigned long prevMillis;
 void setup(void) {
+  stepper_x.begin(RPM,MICROSTEPS);
+  stepper_y.begin(RPM,MICROSTEPS);
+  
   Serial.begin(9600);
+  joystick.begin();
+
   pinMode(encoder0Btn, INPUT_PULLUP);
   pinMode(X_STEP_PIN  , OUTPUT);
   pinMode(X_DIR_PIN    , OUTPUT);
@@ -248,9 +289,30 @@ struct menu_state current_state = { ICON_BGAP, ICON_BGAP, 0 };
 struct menu_state destination_state = { ICON_BGAP, ICON_BGAP, 0 };
 
 void loop(void) {
+  //Serial.print("loop");
   int8_t event;
+  int x =joystick.readX();
+  int y =joystick.readY();
+  /*
+  Serial.print("x=");
+  Serial.print(x);
+  Serial.print("\n");
+  Serial.print("y=");
+  Serial.print(y);
+  Serial.print("\n");
+  */
+ if (x>600){
+    stepper_y.rotate(2);
+    stepper_x.rotate(2);
+   //Serial.print("x+");
+    }else if (x<400){
+    stepper_x.rotate(-2);
+    stepper_y.rotate(-2);
+   // Serial.print("x-");
+    }
 
-  do
+
+ /* do
   {
     u8g2.clearBuffer();
     draw(&current_state);  
@@ -260,6 +322,7 @@ void loop(void) {
     u8g2.sendBuffer();
     delay(10);
     event = u8g2.getMenuEvent();
+    Serial.print(event);
     if ( event == U8X8_MSG_GPIO_MENU_NEXT )
       to_right(&destination_state);
     if ( event == U8X8_MSG_GPIO_MENU_PREV )
@@ -269,5 +332,5 @@ void loop(void) {
       u8g2.setFont(u8g2_font_helvB10_tr);  
       u8g2.userInterfaceMessage("Selection:", menu_entry_list[destination_state.position].name, "", " Ok ");
     }
-  } while ( towards(&current_state, &destination_state) );
+  } while ( towards(&current_state, &destination_state) ); */
 }
