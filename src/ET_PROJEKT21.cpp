@@ -20,8 +20,8 @@
 // 200 Stepp Motor
  #define MOTOR_STEPS 200
  #define MICROSTEPS 1
- #define RPM 120
-
+ #define RPM_X 60
+ #define RPM_Y 12000
 /* Anschlussbelegung für die X-Achse: */
 #define X_STEP_PIN         54
 #define X_DIR_PIN          55
@@ -102,8 +102,8 @@ AnalogJoystick joystick(JOYSTICK_X, JOYSTICK_Y);
 
 unsigned long prevMillis;
 void setup(void) {
-  stepper_x.begin(RPM,MICROSTEPS);
-  stepper_y.begin(RPM,MICROSTEPS);
+  stepper_x.begin(RPM_X,MICROSTEPS);
+  stepper_y.begin(RPM_Y,MICROSTEPS);
   
   Serial.begin(9600);
   joystick.begin();
@@ -302,14 +302,22 @@ void loop(void) {
   Serial.print("\n");
   */
  if (x>600){
-    stepper_y.rotate(2);
+    stepper_y.rotate(8);
     stepper_x.rotate(2);
    //Serial.print("x+");
     }else if (x<400){
     stepper_x.rotate(-2);
-    stepper_y.rotate(-2);
+    stepper_y.rotate(8);
    // Serial.print("x-");
-    }
+    }else if (y>600){
+    stepper_y.rotate(-2);
+      }else if (y<400){
+    stepper_y.rotate(2);
+    };
+
+    
+  
+
 
 
  /* do
