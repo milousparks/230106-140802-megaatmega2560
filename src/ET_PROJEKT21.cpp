@@ -45,6 +45,7 @@ U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, /* clock=*/ 23 /* A4 */ , /* data=*/ 1
 /* Joystick*/
 #define JOYSTICK_X 4
 #define JOYSTICK_Y 3
+#define JOYSTICK_SW 1
 // End of constructor list
 /* Rotary encoder (dial) pins */
 #define ROT_EN_A 31
@@ -73,14 +74,16 @@ int lbtn_state = 1;
 /*Joystick*/
 class AnalogJoystick {
 public:
-    AnalogJoystick(int xPin, int yPin) {
+    AnalogJoystick(int xPin, int yPin, int buttonPin) {
         this->xPin = xPin;
         this->yPin = yPin;
+        this->buttonPin = buttonPin;
     }
 
     void begin() {
         pinMode(xPin, INPUT);
         pinMode(yPin, INPUT);
+        pinMode(buttonPin, INPUT_PULLUP);
     }
 
     int readX() {
@@ -91,13 +94,17 @@ public:
         return analogRead(yPin);
     }
 
+    int readButton() {
+        return digitalRead(buttonPin);
+    }
+
 private:
-    int xPin, yPin;
+    int xPin, yPin, buttonPin;
 };
 /* Klassen Def*/
 DRV8825 stepper_x(MOTOR_STEPS, X_DIR_PIN, X_STEP_PIN, X_ENABLE_PIN);
 DRV8825 stepper_y(MOTOR_STEPS, Y_DIR_PIN, Y_STEP_PIN, Y_ENABLE_PIN);
-AnalogJoystick joystick(JOYSTICK_X, JOYSTICK_Y);
+AnalogJoystick joystick(JOYSTICK_X, JOYSTICK_Y, JOYSTICK_SW);
 
 
 unsigned long prevMillis;
@@ -293,6 +300,7 @@ void loop(void) {
   int8_t event;
   int x =joystick.readX();
   int y =joystick.readY();
+  
   /*
   Serial.print("x=");
   Serial.print(x);
@@ -314,6 +322,11 @@ void loop(void) {
       }else if (y<400){
     stepper_y.rotate(2);
     };
+
+    if(joystick.readButton()==0){
+      stepper_x.rotate(360);
+    }
+
 
     
   
