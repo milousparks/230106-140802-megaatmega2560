@@ -64,3 +64,8 @@ int lbtn_state = 1;
 #define ICON_GAP 4
 #define ICON_BGAP 16
 #define ICON_Y 32+ ICON_GAP
+
+// Endstops
+
+#define X_MIN_PIN 14
+#define X_MAX_PIN 15
