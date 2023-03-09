@@ -7,6 +7,7 @@
 #include <MultiDriver.h>
 #include <SyncDriver.h>
 #include <AnalogJoystick.h>
+#include "Endstop.h"
 
 #ifdef U8X8_HAVE_HW_SPI
 #include <SPI.h>
@@ -24,6 +25,7 @@ U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, /* clock=*/23 /* A4 */, /* data=*/17 /
 DRV8825 stepper_x(MOTOR_STEPS, X_DIR_PIN, X_STEP_PIN, X_ENABLE_PIN);
 DRV8825 stepper_y(MOTOR_STEPS, Y_DIR_PIN, Y_STEP_PIN, Y_ENABLE_PIN);
 AnalogJoystick joystick(JOYSTICK_X, JOYSTICK_Y, JOYSTICK_SW);
+Endstop endstop(X_MIN_PIN, X_MAX_PIN);
 
 unsigned long prevMillis;
 void setup(void)
@@ -31,8 +33,9 @@ void setup(void)
   stepper_x.begin(RPM_X, MICROSTEPS);
   stepper_y.begin(RPM_Y, MICROSTEPS);
 
-  Serial.begin(9600);
-  joystick.begin();
+  Serial.begin(9600); // Start serial communication at 9600 bps
+  joystick.begin();  // Initialize the joystick
+  endstop.begin();  // Initialize the endstop
 
   pinMode(encoder0Btn, INPUT_PULLUP);
   pinMode(X_STEP_PIN, OUTPUT);
@@ -54,16 +57,51 @@ void setup(void)
 void loop(void)
 {
   joystick.button.update(); // Polls the button
+  endstop.update();         // Polls the endstop
   // Serial.print("loop");
   uint16_t x = joystick.readX();
   uint16_t y = joystick.readY();
 
+
   //Serial.print("x=");
-  //Serial.print(x);
+ // Serial.print(x);
   //Serial.print("\n");
   //Serial.print("y=");
   //Serial.print(y);
   //Serial.print("\n");
+ // while (!endstop.endstop_xmin.pressed()||!endstop.endstop_xmax.pressed())
+ // {
+ //   stepper_x.move(1);
+ // }
+ // kalibration
+if (joystick.button.pressed())
+{
+  uint16_t stepps=0;
+  while (!endstop.endstop_xmax.pressed())
+  {
+    stepper_x.move(-1);
+    endstop.update();
+  }
+  stepper_x.move(-10);
+  while (endstop.endstop_xmax.isPressed())
+  {
+    stepper_x.move(1);
+    endstop.update();
+  }
+  while (!endstop.endstop_xmin.pressed())
+  {
+    stepper_x.move(1);
+    stepps++;
+    endstop.update();
+  }
+  Serial.print(stepps);
+
+  
+}
+
+ 
+
+  
 
   if (x > 600)
   {
@@ -88,10 +126,10 @@ void loop(void)
 
   
   
-  if (joystick.button.released())
-  {
-    stepper_y.rotate(360 * WICKELACHSE_UEBERSETZUNG);
-    if(stepper_y.currentPosition() == 0
-    stepper_x.rotate(360 * WICKELACHSE_UEBERSETZUNG);
-  }
+  //if (joystick.button.released())
+  //{
+  //  stepper_y.rotate(360 * WICKELACHSE_UEBERSETZUNG);
+  //  if(stepper_y.currentPosition() == 0)
+  //  stepper_x.rotate(360 * WICKELACHSE_UEBERSETZUNG);
+  //}
 }
