@@ -25,7 +25,10 @@ U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, /* clock=*/23 /* A4 */, /* data=*/17 /
 DRV8825 stepper_x(MOTOR_STEPS, X_DIR_PIN, X_STEP_PIN, X_ENABLE_PIN);
 DRV8825 stepper_y(MOTOR_STEPS, Y_DIR_PIN, Y_STEP_PIN, Y_ENABLE_PIN);
 AnalogJoystick joystick(JOYSTICK_X, JOYSTICK_Y, JOYSTICK_SW);
-Endstop endstop(X_MIN_PIN, X_MAX_PIN);
+DRV8825 *stepper_x_ptr = &stepper_x;
+DRV8825 *stepper_y_ptr = &stepper_y;
+AnalogJoystick *joystick_ptr = &joystick;
+Endstop endstop(X_MIN_PIN, X_MAX_PIN, &stepper_x, &stepper_y);
 
 unsigned long prevMillis;
 void setup(void)
@@ -34,8 +37,8 @@ void setup(void)
   stepper_y.begin(RPM_Y, MICROSTEPS);
 
   Serial.begin(9600); // Start serial communication at 9600 bps
-  joystick.begin();  // Initialize the joystick
-  endstop.begin();  // Initialize the endstop
+  joystick.begin();   // Initialize the joystick
+  endstop.begin();    // Initialize the endstop
 
   pinMode(encoder0Btn, INPUT_PULLUP);
   pinMode(X_STEP_PIN, OUTPUT);
@@ -62,46 +65,43 @@ void loop(void)
   uint16_t x = joystick.readX();
   uint16_t y = joystick.readY();
 
+  // Serial.print("x=");
+  // Serial.print(x);
+  // Serial.print("\n");
+  // Serial.print("y=");
+  // Serial.print(y);
+  // Serial.print("\n");
+  // while (!endstop.endstop_xmin.pressed()||!endstop.endstop_xmax.pressed())
+  // {
+  //   stepper_x.move(1);
+  // }
 
-  //Serial.print("x=");
- // Serial.print(x);
-  //Serial.print("\n");
-  //Serial.print("y=");
-  //Serial.print(y);
-  //Serial.print("\n");
- // while (!endstop.endstop_xmin.pressed()||!endstop.endstop_xmax.pressed())
- // {
- //   stepper_x.move(1);
- // }
- // kalibration
-if (joystick.button.pressed())
-{
-  uint16_t stepps=0;
-  while (!endstop.endstop_xmax.pressed())
+  // Kalibration
+  if (joystick.button.released() && endstop.isCalibrated == false)
   {
-    stepper_x.move(-1);
-    endstop.update();
+    endstop.calibrate();
+    joystick.button.update();
   }
-  stepper_x.move(-10);
-  while (endstop.endstop_xmax.isPressed())
+  // if (endstop.isCalibrated== true)
+  // {
+  //    Serial.print("Calibrated");
+  //   Serial.print(endstop.x_stepps);
+  // }
+
+  uint16_t stepps_rotated = 0;
+  if (joystick.button.released() && endstop.isCalibrated == true)
   {
-    stepper_x.move(1);
-    endstop.update();
+    uint32_t wicklung_pro_lage = SPULEN_Breite / FASER_DIAMETER;
+    uint32_t x_stepps_pro_lage = SPULEN_Breite * (endstop.x_stepps / X_Lenght);
+    uint32_t y_stepps_pro_lage = MICROSTEPS * WICKELACHSE_UEBERSETZUNG * MOTOR_STEPS * wicklung_pro_lage;
+    uint32_t y_stepps_per_x_stepps = y_stepps_pro_lage / x_stepps_pro_lage;
+    while (stepps_rotated < x_stepps_pro_lage)
+    {
+      stepper_y.move(y_stepps_per_x_stepps);
+      stepper_x.move(1);
+      stepps_rotated++;
+    }
   }
-  while (!endstop.endstop_xmin.pressed())
-  {
-    stepper_x.move(1);
-    stepps++;
-    endstop.update();
-  }
-  Serial.print(stepps);
-
-  
-}
-
- 
-
-  
 
   if (x > 600)
   {
@@ -124,12 +124,10 @@ if (joystick.button.pressed())
     stepper_y.rotate(2);
   };
 
-  
-  
-  //if (joystick.button.released())
+  // if (joystick.button.released())
   //{
-  //  stepper_y.rotate(360 * WICKELACHSE_UEBERSETZUNG);
-  //  if(stepper_y.currentPosition() == 0)
-  //  stepper_x.rotate(360 * WICKELACHSE_UEBERSETZUNG);
-  //}
+  //   stepper_y.rotate(360 * WICKELACHSE_UEBERSETZUNG);
+  //   if(stepper_y.currentPosition() == 0)
+  //   stepper_x.rotate(360 * WICKELACHSE_UEBERSETZUNG);
+  // }
 }

@@ -14,7 +14,8 @@ void Endstop::begin() {
     endstop_xmax.interval(2);
     endstop_xmax.setPressedState(LOW);
     endstop_xmin.setPressedState(LOW);
-    x_stepps=0;  
+    x_stepps=0;
+    isCalibrated=false;  
 }
 void Endstop::update() {
     this->endstop_xmin.update();
@@ -40,5 +41,6 @@ void Endstop::calibrate() {
     this->x_stepps++;
     Endstop::update();
   }
+    this->isCalibrated=true;
 }
 

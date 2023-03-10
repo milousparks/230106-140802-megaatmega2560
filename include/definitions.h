@@ -3,8 +3,8 @@
 // 200 Stepp Motor
  #define MOTOR_STEPS 200
  #define MICROSTEPS 32
- #define RPM_X 60
- #define RPM_Y 60
+ #define RPM_X 480*10
+ #define RPM_Y 480*10
 /* Anschlussbelegung für die X-Achse: */
 #define X_STEP_PIN         54
 #define X_DIR_PIN          55
@@ -69,3 +69,11 @@ int lbtn_state = 1;
 
 #define X_MIN_PIN 14
 #define X_MAX_PIN 15
+
+// Länge der X-Achse in mm
+#define X_Lenght 41
+
+// Spulen Definition
+#define SPULEN_Breite 8 //mm
+#define FASER_DIAMETER 0.08 //mm
+//#define WICKLUNGEN_PRO_LAGE = SPULEN_Breite/FASER_DIAMETER
