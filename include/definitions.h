@@ -27,14 +27,15 @@
 /* Joystick*/
 #define JOYSTICK_X 4
 #define JOYSTICK_Y 3
-#define JOYSTICK_SW 1
+#define JOYSTICK_SW 0
 // End of constructor list
+
 /* Rotary encoder (dial) pins */
 #define ROT_EN_A 31
 #define ROT_EN_B 33
 
 /* Rotary encoder button pin */
-#define BUTTON_DIO 35
+#define ROT_BUTTON_PIN 35
 #define BUZZER_DIO 37
 #define KILL_PIN 41
 
@@ -77,3 +78,4 @@ int lbtn_state = 1;
 #define SPULEN_Breite 8 //mm
 #define FASER_DIAMETER 0.08 //mm
 //#define WICKLUNGEN_PRO_LAGE = SPULEN_Breite/FASER_DIAMETER
+
