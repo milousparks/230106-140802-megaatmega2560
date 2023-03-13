@@ -6,6 +6,7 @@
  #define MICROSTEPS 32
  #define RPM_X 480*10
  #define RPM_Y 480*10
+ #define RPM_Z 480*10
 /* Anschlussbelegung für die X-Achse: */
 #define X_STEP_PIN         54
 #define X_DIR_PIN          55
@@ -20,6 +21,11 @@
 #ifndef Y_CS_PIN
   #define Y_CS_PIN         49
 #endif
+/* Anschlussbelegung für die Z-Achse: */
+#define Z_STEP_PIN         46
+#define Z_DIR_PIN          48
+#define Z_ENABLE_PIN       62
+
 
 /* Hardware Übersetzungen*/
 #define WICKELACHSE_UEBERSETZUNG 3
