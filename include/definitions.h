@@ -1,3 +1,4 @@
+
 /* Stepper Motoren*/
 
 // 200 Stepp Motor
@@ -27,14 +28,15 @@
 /* Joystick*/
 #define JOYSTICK_X 4
 #define JOYSTICK_Y 3
-#define JOYSTICK_SW 1
+#define JOYSTICK_SW 0
 // End of constructor list
+
 /* Rotary encoder (dial) pins */
 #define ROT_EN_A 31
 #define ROT_EN_B 33
 
 /* Rotary encoder button pin */
-#define BUTTON_DIO 35
+#define ROT_BUTTON_PIN 35
 #define BUZZER_DIO 37
 #define KILL_PIN 41
 
@@ -47,11 +49,6 @@
 #define LCD_D7 29
 
 #define encoder0Btn 2
-int encoder0Pos = 0;
-//aktueller stand
-int temp_state  = 0;
-//letzter stand
-int lbtn_state = 1;
 
 /*
   Icon configuration
