@@ -16,7 +16,7 @@ void Endstop::begin()
   endstop_xmax.interval(2);
   endstop_xmax.setPressedState(LOW);
   endstop_xmin.setPressedState(LOW);
-  x_stepps = 0;
+  x_stepps = 153505; // Gemessene Stepps
   isCalibrated = false;
   this->wicklung_pro_lage = SPULEN_Breite / FASER_DIAMETER;
   this->x_stepps_pro_lage = SPULEN_Breite * (this->x_stepps / X_Lenght);
@@ -30,7 +30,8 @@ void Endstop::update()
 }
 
 void Endstop::calibrate()
-{
+{ 
+  this->x_stepps=0;
 
   while (!this->endstop_xmax.pressed())
   {
@@ -49,5 +50,8 @@ void Endstop::calibrate()
     this->x_stepps++;
     Endstop::update();
   }
+  this->x_stepps_pro_lage = SPULEN_Breite * (this->x_stepps / X_Lenght);
+  this->y_stepps_pro_lage = MICROSTEPS * WICKELACHSE_UEBERSETZUNG * MOTOR_STEPS * wicklung_pro_lage;
+  this->y_stepps_per_x_stepps = y_stepps_pro_lage / x_stepps_pro_lage;
   this->isCalibrated = true;
 }

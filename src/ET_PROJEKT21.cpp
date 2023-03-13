@@ -38,7 +38,8 @@ boolean enablePrint = false;
 GEMItem menuItemInt("Rotary Count:", rotaryCount);
 GEMItem menuItemBool("Enable print:", enablePrint);
 void printData(); // Forward declaration
-//void wickelLage1(); // Forward declaration
+void wickelLageLeft(); // Forward declaration
+void wickelLageRight(); // Forward declaration
 
 /*Menu Pages*/
 GEMPage menuPageMain("Main Menu");
@@ -50,7 +51,8 @@ GEMItem menuItemWicklen("Wickeln", menuPageWickeln);
 GEMItem menuItemManWicklen("Manuell Wickeln", menuPageManWickeln);
 GEMItem menuItemAutoWicklen("Automatisch Wickeln", menuPageAutoWickeln);
 GEMItem menuItemJoystickPosX("Joystick Pos. X:", x);
-//GEMItem menueItemAutoLage1("Wickel 1 Lage ->", wickelLage1);
+GEMItem menueItemAutoLageLeft("Wickel 1 Lage <-", wickelLageLeft);
+GEMItem menueItemAutoLageRight("Wickel 1 Lage ->", wickelLageRight);
 
 
 // Create menu object of class GEM_u8g2. Supply its constructor with reference to u8g2 object we created earlier
@@ -70,7 +72,8 @@ void setupMenu()
   menuPageManWickeln.addMenuItem(menuItemJoystickPosX);
   
   menuPageAutoWickeln.setParentMenuPage(menuPageWickeln);
-  //menuPageAutoWickeln.addMenuItem(menueItemAutoLage1);
+  menuPageAutoWickeln.addMenuItem(menueItemAutoLageLeft);
+  menuPageAutoWickeln.addMenuItem(menueItemAutoLageRight);
 
   // Add menu page to menu and set it as current
   menu.setMenuPageCurrent(menuPageMain);
@@ -110,7 +113,7 @@ void setup(void)
 
 void loop(void)
 {
-  Serial.print("Test\n");
+  
   joystick.button.update();                            // Polls the button
   rotary_button.update();                              // Polls the button
   endstop.update();                                    // Polls the endstop
@@ -144,13 +147,14 @@ void loop(void)
     Serial.print("Calibrating");
     endstop.calibrate();
     joystick.button.update();
-  }
-
-   if (endstop.isCalibrated== true)
+     if (endstop.isCalibrated== true)
    {
       Serial.print("Calibrated");
      Serial.print(endstop.x_stepps);
    }
+  }
+
+  
   
    uint16_t stepps_rotated = 0;
    if (joystick.button.released() && endstop.isCalibrated == true)
@@ -169,14 +173,14 @@ void loop(void)
   
    if (x > 600)
    {
-     stepper_y.rotate(8);
+     //stepper_y.rotate(8);
      stepper_x.rotate(2);
      // Serial.print("x+");
    }
    else if (x < 400)
    {
      stepper_x.rotate(-2);
-     stepper_y.rotate(8);
+     //stepper_y.rotate(8);
      // Serial.print("x-");
    }
    else if (y > 600)
@@ -191,7 +195,18 @@ void loop(void)
  
 }
 
-void wickelLage1()
+void wickelLageLeft()
+{
+  uint16_t stepps_rotated = 0;
+  while (stepps_rotated < endstop.x_stepps_pro_lage)
+    {
+      stepper_y.move(endstop.y_stepps_per_x_stepps);
+      stepper_x.move(-1);
+      stepps_rotated++;
+    }
+}
+
+void wickelLageRight()
 {
   uint16_t stepps_rotated = 0;
   while (stepps_rotated < endstop.x_stepps_pro_lage)

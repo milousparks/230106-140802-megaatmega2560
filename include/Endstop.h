@@ -21,10 +21,10 @@ public:
     DRV8825 *stepper_x;
     DRV8825 *stepper_y;
     bool isCalibrated;
-    uint16_t wicklung_pro_lage;
-    uint16_t x_stepps_pro_lage;
-    uint16_t y_stepps_pro_lage;
-    uint16_t y_stepps_per_x_stepps;
+    int wicklung_pro_lage;
+    int x_stepps_pro_lage;
+    int y_stepps_pro_lage;
+    int y_stepps_per_x_stepps;
 
 private:
     int pin_xmin, pin_xmax;
