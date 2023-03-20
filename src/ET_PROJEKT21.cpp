@@ -10,6 +10,8 @@
 #include "Endstop.h"
 #include <GEM_u8g2.h>
 #include <qdec.h>
+#include "Settings.h"
+#include <OneButton.h>
 #ifdef U8X8_HAVE_HW_SPI
 #include <SPI.h>
 #include "DRV8825.h"
@@ -18,7 +20,7 @@
 #include <Wire.h>
 #endif
 
-U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, /* clock=*/23 /* A4 */, /* data=*/17 /* A2 */, /* CS=*/16 /* A3 */, /* reset=*/U8X8_PIN_NONE);
+U8G2_ST7920_128X64_F_SW_SPI u8g2(U8G2_R0, LCD_D4_CLOCK, LCD_EN_DATA, LCD_CS, /* reset=*/U8X8_PIN_NONE);
 
 /*Joystick*/
 int x;
@@ -29,48 +31,50 @@ DRV8825 stepper_y(MOTOR_STEPS, Y_DIR_PIN, Y_STEP_PIN, Y_ENABLE_PIN);
 DRV8825 stepper_z(MOTOR_STEPS, Z_DIR_PIN, Z_STEP_PIN, Z_ENABLE_PIN);
 AnalogJoystick joystick(JOYSTICK_X, JOYSTICK_Y, JOYSTICK_SW);
 Endstop endstop(X_MIN_PIN, X_MAX_PIN, &stepper_x, &stepper_y);
-::SimpleHacks::QDecoder qdec(ROT_EN_B, ROT_EN_A, true);
-Bounce2::Button rotary_button = Bounce2::Button();
+::SimpleHacks::QDecoder qdec(ROT_EN_A, ROT_EN_B, true);
+OneButton rotary_button(ROT_BUTTON_PIN, true);
+Settings settings;
+void (Settings::*calcSet)() = &Settings::calculateWindings;
 float wicklungen;
-// Create variables that will be editable through the menu and assign them initial values
-int rotaryCount = 0;
-boolean enablePrint = false;
-// void rotary_data();
-GEMItem menuItemInt("Rotary Count:", rotaryCount);
-GEMItem menuItemBool("Enable print:", enablePrint);
-void printData();       // Forward declaration
-void wickelLageLeft();  // Forward declaration
-void wickelLageRight(); // Forward declaration
-void kalibrieren();     // Forward declaration
+
+/*Forward Declarations*/
+void printData();
+void wickelLageLeft();
+void wickelLageRight();
+void kalibrieren();
+void rotary_button_clicked();
+void rotary_button_long_press_start();
+void rotary_button_double_clicked();
+
 /*Menu Pages*/
 GEMPage menuPageMain("Main Menu");
 GEMPage menuPageWickeln("Wickeln");
 GEMPage menuPageManWickeln("Manuell Wickeln");
 GEMPage menuPageAutoWickeln("Automatisch Wickeln");
+GEMPage menuPageSettings("Settings");
 
+/*Menu Items*/
 GEMItem menuItemWicklen("Wickeln", menuPageWickeln);
 GEMItem menuItemManWicklen("Manuell Wickeln", menuPageManWickeln);
 GEMItem menuItemAutoWicklen("Automatisch Wickeln", menuPageAutoWickeln);
+GEMItem menuItemSettings("Settings", menuPageSettings);
 GEMItem menuItemJoystickPosX("Joystick Pos. X:", x);
 GEMItem menueItemAutoLageLeft("Wickel 1 Lage <-", wickelLageLeft);
 GEMItem menueItemAutoLageRight("Wickel 1 Lage ->", wickelLageRight);
-GEMItem menuItemWicklungen("Wicklungen:", wicklungen);	
-GEMItem menuItemWickelnKalibrieren("Kalibrieren",kalibrieren);
-
-uint32_t wicklung_pro_lage;
-uint32_t x_stepps_pro_lage;
-uint32_t y_stepps_pro_lage;
-uint32_t y_stepps_per_x_stepps;
+GEMItem menuItemWicklungen("Windungen:", wicklungen);
+GEMItem menuItemWickelnKalibrieren("Kalibrieren", kalibrieren);
+GEMItem menuItemSettingsSpuleBreite("Spulen Breite:", settings.spule_breite, calcSet);
+GEMItem menuItemSettingsFaserDurchmesser("Faser Durchmesser:", settings.faser_durchmesser, calcSet);
 
 // Create menu object of class GEM_u8g2. Supply its constructor with reference to u8g2 object we created earlier
 GEM_u8g2 menu(u8g2);
 void setupMenu()
 {
   // Add menu items to menu page
-  menuPageMain.addMenuItem(menuItemInt);
-  menuPageMain.addMenuItem(menuItemBool);
   menuPageMain.addMenuItem(menuItemWicklen);
+  menuPageMain.addMenuItem(menuItemSettings);
 
+  // Items for MenuPage Manuell Wickeln
   menuPageWickeln.setParentMenuPage(menuPageMain);
   menuPageWickeln.addMenuItem(menuItemManWicklen);
   menuPageWickeln.addMenuItem(menuItemAutoWicklen);
@@ -78,14 +82,21 @@ void setupMenu()
   menuPageManWickeln.setParentMenuPage(menuPageWickeln);
   menuPageManWickeln.addMenuItem(menuItemJoystickPosX);
 
+  // Items for MenuPage Automatisch Wickeln
   menuPageAutoWickeln.setParentMenuPage(menuPageWickeln);
   menuPageAutoWickeln.addMenuItem(menueItemAutoLageLeft);
   menuPageAutoWickeln.addMenuItem(menueItemAutoLageRight);
   menuPageAutoWickeln.addMenuItem(menuItemWicklungen);
 
+  // Items for MenuPage Settings
+  menuPageSettings.setParentMenuPage(menuPageMain);
+  menuPageSettings.addMenuItem(menuItemSettingsSpuleBreite);
+  menuPageSettings.addMenuItem(menuItemSettingsFaserDurchmesser);
+
   // Add menu page to menu and set it as current
   menu.setMenuPageCurrent(menuPageMain);
 }
+
 unsigned long prevMillis;
 void setup(void)
 {
@@ -97,27 +108,12 @@ void setup(void)
   Serial.begin(9600); // Start serial communication at 9600 bps
   joystick.begin();   // Initialize the joystick
   endstop.begin();    // Initialize the endstop
-  rotary_button.attach(ROT_BUTTON_PIN, INPUT_PULLUP);
-  rotary_button.setPressedState(LOW);
-  rotary_button.interval(2);
- // wicklung_pro_lage = SPULEN_Breite / FASER_DIAMETER;
- // x_stepps_pro_lage = SPULEN_Breite * (endstop.x_stepps / X_Lenght);
- // y_stepps_pro_lage = MICROSTEPS * WICKELACHSE_UEBERSETZUNG * MOTOR_STEPS * wicklung_pro_lage;
- // y_stepps_per_x_stepps = y_stepps_pro_lage / x_stepps_pro_lage;
-//
-  pinMode(encoder0Btn, INPUT_PULLUP);
-  pinMode(X_STEP_PIN, OUTPUT);
-  pinMode(X_DIR_PIN, OUTPUT);
-  pinMode(X_ENABLE_PIN, OUTPUT);
-  pinMode(Y_STEP_PIN, OUTPUT);
-  pinMode(Y_DIR_PIN, OUTPUT);
-  pinMode(Y_ENABLE_PIN, OUTPUT);
-  digitalWrite(X_ENABLE_PIN, LOW);
-  digitalWrite(Y_ENABLE_PIN, LOW);
-  pinMode(Z_STEP_PIN,OUTPUT);
-  pinMode(Z_DIR_PIN,OUTPUT);
-  pinMode(Z_ENABLE_PIN,OUTPUT);
-  digitalWrite(Z_ENABLE_PIN, LOW);
+
+  rotary_button.attachClick(rotary_button_clicked);
+  rotary_button.attachDoubleClick(rotary_button_double_clicked);
+  rotary_button.attachLongPressStart(rotary_button_long_press_start);
+  // Set Pinmodes
+  settings.begin();
 
   /*Rotarty Encoder*/
   qdec.begin();
@@ -132,8 +128,9 @@ void setup(void)
 void loop(void)
 {
 
-  joystick.button.update();                            // Polls the button
-  rotary_button.update();                              // Polls the button
+  joystick.button.update(); // Polls the button
+                            // Polls the button
+  rotary_button.tick();
   endstop.update();                                    // Polls the endstop
   ::SimpleHacks::QDECODER_EVENT event = qdec.update(); // Polls the rotary encoder
 
@@ -144,64 +141,26 @@ void loop(void)
   // increment for clockwise, decrement for counter-clockwise
   if (event & ::SimpleHacks::QDECODER_EVENT_CW)
   {
-    menu.registerKeyPress(GEM_KEY_DOWN);
-    // menu.drawMenu();
+    menu.registerKeyPress(GEM_KEY_UP);
   }
   else if (event & ::SimpleHacks::QDECODER_EVENT_CCW)
   {
-    menu.registerKeyPress(GEM_KEY_UP);
-  }
-  else if (rotary_button.pressed())
-  {
-    menu.registerKeyPress(GEM_KEY_OK);
-  }
-
-  // Kalibration
-  if (joystick.button.released() && endstop.isCalibrated == false)
-  {
-    Serial.print("Calibrating");
-    endstop.calibrate();
-    joystick.button.update();
-    if (endstop.isCalibrated == true)
-    {
-      Serial.print("Calibrated");
-      Serial.print(endstop.x_stepps);
-    }
-  }
-
-  uint16_t stepps_rotated = 0;
-  if (joystick.button.released() && endstop.isCalibrated == true)
-  {
-    uint32_t wicklung_pro_lage = SPULEN_Breite / FASER_DIAMETER;
-    uint32_t x_stepps_pro_lage = SPULEN_Breite * (endstop.x_stepps / X_Lenght);
-    uint32_t y_stepps_pro_lage = MICROSTEPS * WICKELACHSE_UEBERSETZUNG * MOTOR_STEPS * wicklung_pro_lage;
-    uint32_t y_stepps_per_x_stepps = y_stepps_pro_lage / x_stepps_pro_lage;
-    while (stepps_rotated < x_stepps_pro_lage)
-    {
-      stepper_y.move(y_stepps_per_x_stepps);
-      stepper_x.move(1);
-      stepps_rotated++;
-    }
+    menu.registerKeyPress(GEM_KEY_DOWN);
   }
 
   if (x > 600)
   {
-    // stepper_y.rotate(8);
     stepper_x.rotate(2);
     stepper_z.rotate(2);
-    // Serial.print("x+");
   }
   else if (x < 400)
   {
     stepper_x.rotate(-2);
     stepper_z.rotate(-2);
-    // stepper_y.rotate(8);
-    //  Serial.print("x-");
   }
   else if (y > 600)
   {
     stepper_y.rotate(-2);
-     
   }
   else if (y < 400)
   {
@@ -211,35 +170,52 @@ void loop(void)
 
 void wickelLageLeft()
 {
-  uint16_t stepps_rotated = 0;
-  while (stepps_rotated <= endstop.x_stepps_pro_lage)
+  uint16_t steps_rotated = 0;
+  while (steps_rotated <= endstop.x_steps_pro_lage)
   {
-    stepper_y.move(endstop.y_stepps_per_x_stepps);
+    stepper_y.move(endstop.y_steps_per_x_steps);
     stepper_x.move(-1);
     stepper_z.move(-1);
-    stepps_rotated++;
+    steps_rotated++;
   }
-  wicklungen+=(stepps_rotated*endstop.y_stepps_per_x_stepps)/endstop.y_steps_per_rotation;
+  wicklungen += (steps_rotated * endstop.y_steps_per_x_steps) / endstop.y_steps_per_rotation;
   menu.drawMenu();
 }
 
 void wickelLageRight()
 {
-  
-  uint16_t stepps_rotated = 0;
 
-  while (stepps_rotated < endstop.x_stepps_pro_lage)
+  uint16_t steps_rotated = 0;
+
+  while (steps_rotated <= endstop.x_steps_pro_lage)
   {
-    
-    stepper_y.move(endstop.y_stepps_per_x_stepps);
+
+    stepper_y.move(endstop.y_steps_per_x_steps);
     stepper_x.move(1);
     stepper_z.move(1);
-    stepps_rotated++; 
+    steps_rotated++;
   }
-  wicklungen+=(stepps_rotated*endstop.y_stepps_per_x_stepps)/endstop.y_steps_per_rotation;
+  wicklungen += (steps_rotated * endstop.y_steps_per_x_steps) / endstop.y_steps_per_rotation;
   menu.drawMenu();
 }
 void kalibrieren()
 {
-  endstop.calibrate();
+  settings.xsteps = endstop.calibrate();
 }
+
+void rotary_button_clicked()
+{
+  menu.registerKeyPress(GEM_KEY_OK);
+}
+
+void rotary_button_double_clicked()
+{
+  menu.registerKeyPress(GEM_KEY_LEFT);
+}
+
+void rotary_button_long_press_start()
+{
+  menu.registerKeyPress(GEM_KEY_RIGHT);
+}
+
+

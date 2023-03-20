@@ -15,16 +15,16 @@ public:
     Bounce2::Button endstop_xmin;
     Bounce2::Button endstop_xmax;
     void update();
-    uint32_t x_stepps;
-    void calibrate();
+    uint16_t x_steps;
+    uint16_t calibrate();
     AnalogJoystick *joystick;
     DRV8825 *stepper_x;
     DRV8825 *stepper_y;
     bool isCalibrated;
     uint32_t wicklung_pro_lage;
-    uint32_t x_stepps_pro_lage;
-    uint32_t y_stepps_pro_lage;
-    uint32_t y_stepps_per_x_stepps;
+    uint32_t x_steps_pro_lage;
+    uint32_t y_steps_pro_lage;
+    uint32_t y_steps_per_x_steps;
     uint32_t y_steps_per_rotation;
 
 private:
